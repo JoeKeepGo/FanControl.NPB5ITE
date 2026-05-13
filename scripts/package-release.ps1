@@ -26,6 +26,7 @@ New-Item -ItemType Directory -Force -Path $packageDir | Out-Null
 Copy-Item -LiteralPath (Join-Path $output "FanControl.NPB5ITE.dll") -Destination $packageDir -Force
 Copy-Item -LiteralPath (Join-Path $output "FanControl.NPB5ITE.pdb") -Destination $packageDir -Force
 Copy-Item -LiteralPath (Join-Path $root "README.md") -Destination $packageDir -Force
+Copy-Item -LiteralPath (Join-Path $root "README.zh-CN.md") -Destination $packageDir -Force
 Copy-Item -LiteralPath (Join-Path $root "LICENSE") -Destination $packageDir -Force
 
 if (Test-Path -LiteralPath $zip) {

@@ -1,5 +1,7 @@
 # FanControl.NPB5ITE
 
+[English](README.md) | [简体中文](README.zh-CN.md)
+
 Fan Control plugin for Minisforum Venus Series NPB5 / RPBNB systems with an ITE IT8613E/F hardware monitor.
 
 This plugin exposes:
