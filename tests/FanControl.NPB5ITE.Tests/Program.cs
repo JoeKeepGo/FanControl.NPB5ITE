@@ -20,6 +20,9 @@ namespace FanControl.NPB5ITE.Tests
             LowPwmRequiresExplicitOptIn();
             ExperimentalLowPwmAllowsTenPercentMinimum();
             SafetyPolicyRejectsInvalidMinimumPwm();
+            TestedNpb5HardwareDefaultsEnableWrites();
+            DisableWritesOverridesTestedHardwareDefaults();
+            UnknownHardwareDefaultsRemainReadOnly();
             EnvironmentMinimumPwmCannotBypassDefaultWithoutLowPwmOptIn();
             RegisterDumpComparerFindsChangedValues();
             HwInfoRawRpmIsParsed();
@@ -171,6 +174,46 @@ namespace FanControl.NPB5ITE.Tests
             throw new InvalidOperationException(nameof(SafetyPolicyRejectsInvalidMinimumPwm) + " failed. Expected ArgumentOutOfRangeException.");
         }
 
+        private static void TestedNpb5HardwareDefaultsEnableWrites()
+        {
+            WithoutPluginEnvironment(() =>
+            {
+                var options = PluginOptions.FromEnvironment(CreateTestedHardwareIdentity());
+
+                AssertEqual(true, options.UsesTestedHardwareDefaults, nameof(TestedNpb5HardwareDefaultsEnableWrites));
+                AssertEqual(true, options.EnableHardwareWrites, nameof(TestedNpb5HardwareDefaultsEnableWrites));
+                AssertEqual(true, options.EnableExperimentalRegisters, nameof(TestedNpb5HardwareDefaultsEnableWrites));
+                AssertEqual(false, options.AllowLowPwm, nameof(TestedNpb5HardwareDefaultsEnableWrites));
+                AssertEqual(35.0f, options.MinimumPwmPercent, nameof(TestedNpb5HardwareDefaultsEnableWrites));
+            });
+        }
+
+        private static void DisableWritesOverridesTestedHardwareDefaults()
+        {
+            WithoutPluginEnvironment(() =>
+            {
+                WithEnvironment("FANCONTROL_NPB5ITE_DISABLE_WRITES", "1", () =>
+                {
+                    var options = PluginOptions.FromEnvironment(CreateTestedHardwareIdentity());
+
+                    AssertEqual(false, options.UsesTestedHardwareDefaults, nameof(DisableWritesOverridesTestedHardwareDefaults));
+                    AssertEqual(false, options.EnableHardwareWrites, nameof(DisableWritesOverridesTestedHardwareDefaults));
+                    AssertEqual(false, options.EnableExperimentalRegisters, nameof(DisableWritesOverridesTestedHardwareDefaults));
+                });
+            });
+        }
+
+        private static void UnknownHardwareDefaultsRemainReadOnly()
+        {
+            WithoutPluginEnvironment(() =>
+            {
+                var options = PluginOptions.FromEnvironment(HardwareIdentity.Unknown);
+
+                AssertEqual(false, options.UsesTestedHardwareDefaults, nameof(UnknownHardwareDefaultsRemainReadOnly));
+                AssertEqual(false, options.EnableHardwareWrites, nameof(UnknownHardwareDefaultsRemainReadOnly));
+                AssertEqual(false, options.EnableExperimentalRegisters, nameof(UnknownHardwareDefaultsRemainReadOnly));
+            });
+        }
 
         private static void EnvironmentMinimumPwmCannotBypassDefaultWithoutLowPwmOptIn()
         {
@@ -264,9 +307,9 @@ namespace FanControl.NPB5ITE.Tests
 
         private static void PwmCapabilityReportsDefaultBlockers()
         {
-            WithEnvironment("FANCONTROL_NPB5ITE_ENABLE_WRITES", null, () =>
+            WithoutPluginEnvironment(() =>
             {
-                var capability = PwmControlCapability.Evaluate(PluginOptions.FromEnvironment(), new FakeIoPort(isAvailable: false));
+                var capability = PwmControlCapability.Evaluate(PluginOptions.FromEnvironment(HardwareIdentity.Unknown), new FakeIoPort(isAvailable: false));
 
                 AssertEqual(false, capability.CanApplyManualPwm, nameof(PwmCapabilityReportsDefaultBlockers));
                 AssertEqual(true, capability.Blockers.Contains(PwmControlBlocker.HardwareWritesDisabled), nameof(PwmCapabilityReportsDefaultBlockers));
@@ -312,7 +355,7 @@ namespace FanControl.NPB5ITE.Tests
         {
             WithEnvironment("FANCONTROL_NPB5ITE_ENABLE_WRITES", "1", () =>
             {
-                using (var hardware = new Ite8613fIo(new FakeIoPort(isAvailable: true), PluginOptions.FromEnvironment(), new PluginLog()))
+                using (var hardware = new Ite8613fIo(new FakeIoPort(isAvailable: true), PluginOptions.FromEnvironment(HardwareIdentity.Unknown), new PluginLog()))
                 {
                     try
                     {
@@ -478,6 +521,17 @@ namespace FanControl.NPB5ITE.Tests
                 0x00);
         }
 
+        private static HardwareIdentity CreateTestedHardwareIdentity()
+        {
+            return new HardwareIdentity(
+                "Shenzhen Meigao Electronic Equipment Co.,Ltd",
+                "RPBNB",
+                "Micro Computer (HK) Tech Limited",
+                "Venus Series",
+                "American Megatrends International, LLC.",
+                "RPBNB.0.09");
+        }
+
         private static void AssertEqual<T>(T expected, T actual, string testName)
         {
             if (!Equals(expected, actual))
@@ -510,6 +564,38 @@ namespace FanControl.NPB5ITE.Tests
             finally
             {
                 Environment.SetEnvironmentVariable(name, original);
+            }
+        }
+
+        private static void WithoutPluginEnvironment(Action action)
+        {
+            var names = new[]
+            {
+                "FANCONTROL_NPB5ITE_ENABLE_WRITES",
+                "FANCONTROL_NPB5ITE_ENABLE_EXPERIMENTAL_REGISTERS",
+                "FANCONTROL_NPB5ITE_DISABLE_WRITES",
+                "FANCONTROL_NPB5ITE_DISABLE_TESTED_HARDWARE_DEFAULTS",
+                "FANCONTROL_NPB5ITE_ALLOW_LOW_PWM",
+                "FANCONTROL_NPB5ITE_MIN_PWM_PERCENT",
+                "FANCONTROL_NPB5ITE_ALLOW_MANUAL_WITHOUT_CPU_TEMP"
+            };
+
+            var originals = names.ToDictionary(name => name, Environment.GetEnvironmentVariable);
+            try
+            {
+                foreach (var name in names)
+                {
+                    Environment.SetEnvironmentVariable(name, null);
+                }
+
+                action();
+            }
+            finally
+            {
+                foreach (var pair in originals)
+                {
+                    Environment.SetEnvironmentVariable(pair.Key, pair.Value);
+                }
             }
         }
 

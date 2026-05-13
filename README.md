@@ -16,7 +16,7 @@ This project writes low-level hardware monitor registers when manual PWM is expl
 
 Use it only if you understand and accept the risk. Keep a way to restore BIOS fan control and monitor CPU temperature during initial setup.
 
-Default behavior is read-only. Manual PWM writes require all required environment switches and Administrator access.
+Default behavior is read-only on unknown hardware. On the tested NPB5 / RPBNB hardware identity, manual PWM writes are enabled by default and require Administrator access.
 
 ## Hardware Status
 
@@ -43,7 +43,7 @@ Current PWM implementation:
 - Restores old register values captured before manual writes.
 - Reads CPU fan RPM directly from the observed fan2 tach registers `0x0E` and `0x19` using `675000 / tachCount`.
 
-The PWM register map remains gated behind an explicit opt-in environment variable so the plugin stays read-only by default.
+The PWM register map is enabled by default only on the tested NPB5 / RPBNB hardware identity. Unknown hardware remains read-only unless the user explicitly opts in.
 
 ## Platform Support
 
@@ -99,20 +99,26 @@ Without Administrator access, direct Super I/O reads may fail with chip ID `0x00
 
 ## Runtime Configuration
 
-Manual PWM writes are disabled unless explicitly enabled.
+On the tested NPB5 / RPBNB hardware identity, manual PWM writes are enabled by default. Fan Control still needs Administrator access for direct IT8613E/F register access.
 
-Recommended read-only startup:
+Normal startup on the tested NPB5 / RPBNB:
 
 ```powershell
-Start-Process 'C:\Program Files (x86)\FanControl\FanControl.exe'
+Start-Process 'C:\Program Files (x86)\FanControl\FanControl.exe' -Verb RunAs
 ```
 
-Manual PWM startup:
+Read-only startup or emergency disable:
+
+```powershell
+$env:FANCONTROL_NPB5ITE_DISABLE_WRITES='1'
+Start-Process 'C:\Program Files (x86)\FanControl\FanControl.exe' -Verb RunAs
+```
+
+For unknown hardware, writes remain disabled unless explicitly enabled:
 
 ```powershell
 $env:FANCONTROL_NPB5ITE_ENABLE_WRITES='1'
 $env:FANCONTROL_NPB5ITE_ENABLE_EXPERIMENTAL_REGISTERS='1'
-Start-Process 'C:\Program Files (x86)\FanControl\FanControl.exe' -Verb RunAs
 ```
 
 If CPU temperature is unavailable through LibreHardwareMonitor, manual writes are blocked. For short controlled tests only:
@@ -132,8 +138,10 @@ Environment variables:
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `FANCONTROL_NPB5ITE_ENABLE_WRITES` | disabled | Allows any hardware write path. |
-| `FANCONTROL_NPB5ITE_ENABLE_EXPERIMENTAL_REGISTERS` | disabled | Allows writes to the observed IT8613E fan2 register map. Kept as an explicit safety opt-in. |
+| `FANCONTROL_NPB5ITE_DISABLE_WRITES` | disabled | Forces read-only mode, even on the tested NPB5 / RPBNB hardware identity. |
+| `FANCONTROL_NPB5ITE_DISABLE_TESTED_HARDWARE_DEFAULTS` | disabled | Disables automatic write defaults for the tested NPB5 / RPBNB hardware identity. |
+| `FANCONTROL_NPB5ITE_ENABLE_WRITES` | disabled | Allows hardware writes on unrecognized hardware. Not needed on the tested NPB5 / RPBNB. |
+| `FANCONTROL_NPB5ITE_ENABLE_EXPERIMENTAL_REGISTERS` | disabled | Allows writes to the observed IT8613E fan2 register map on unrecognized hardware. Not needed on the tested NPB5 / RPBNB. |
 | `FANCONTROL_NPB5ITE_ALLOW_MANUAL_WITHOUT_CPU_TEMP` | disabled | Allows manual PWM when CPU temperature is unavailable. Use only for short tests. |
 | `FANCONTROL_NPB5ITE_ALLOW_LOW_PWM` | disabled | Allows `FANCONTROL_NPB5ITE_MIN_PWM_PERCENT` below 35%. |
 | `FANCONTROL_NPB5ITE_MIN_PWM_PERCENT` | `35` | Minimum manual PWM. With low-PWM opt-in, the hard floor is 10%. |
@@ -192,7 +200,7 @@ FanControl.NPB5ITE.pdb
 Local release package:
 
 ```powershell
-.\scripts\package-release.ps1 -Version 0.2.0
+.\scripts\package-release.ps1 -Version 0.2.1
 ```
 
 Do not include local diagnostic output, deployment logs, or Fan Control installation DLLs.
@@ -220,8 +228,6 @@ Suggested register confirmation workflow:
 Write probe:
 
 ```powershell
-$env:FANCONTROL_NPB5ITE_ENABLE_WRITES='1'
-$env:FANCONTROL_NPB5ITE_ENABLE_EXPERIMENTAL_REGISTERS='1'
 dotnet run --project ".\tools\FanControl.NPB5ITE.Diagnostics\FanControl.NPB5ITE.Diagnostics.csproj" -c Release -- ".\diagnostics" --label pwm60-probe --set-pwm 60 --restore-after-seconds 8
 ```
 
@@ -231,7 +237,7 @@ The probe writes PWM, captures snapshots, waits, and restores the previous regis
 
 - Only the NPB5/RPBNB IT8613E/F path has been investigated.
 - NPB7, NAB5, NAB6, and other similar Venus Series systems should be verified before PWM control is enabled.
-- PWM writes require explicit opt-in.
+- PWM writes are enabled by default only on the tested NPB5 / RPBNB hardware identity. Other systems require explicit opt-in.
 - Auto restore is based on old-value register snapshots, not a fully confirmed BIOS Auto register map.
 - Direct IT8613E tach RPM has only been verified on one NPB5/Windows 11 system.
 - Fan Control must run elevated for direct IT8613E HWM tach reads and IT8613E HWM register writes.

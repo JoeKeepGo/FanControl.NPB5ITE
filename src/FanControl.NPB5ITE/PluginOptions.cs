@@ -9,6 +9,10 @@ namespace FanControl.NPB5ITE
         public const float ExperimentalMinimumPwmPercent = 10.0f;
         public const float DefaultCriticalCpuTemperatureCelsius = 85.0f;
 
+        public HardwareIdentity HardwareIdentity { get; private set; } = HardwareIdentity.Unknown;
+
+        public bool UsesTestedHardwareDefaults { get; private set; }
+
         public bool EnableHardwareWrites { get; private set; }
 
         public bool EnableExperimentalRegisters { get; private set; }
@@ -23,17 +27,29 @@ namespace FanControl.NPB5ITE
 
         public static PluginOptions FromEnvironment()
         {
+            return FromEnvironment(HardwareIdentity.DetectSystem());
+        }
+
+        public static PluginOptions FromEnvironment(HardwareIdentity hardwareIdentity)
+        {
+            var disableWrites = IsEnabled("FANCONTROL_NPB5ITE_DISABLE_WRITES");
+            var disableTestedHardwareDefaults = IsEnabled("FANCONTROL_NPB5ITE_DISABLE_TESTED_HARDWARE_DEFAULTS");
+            var usesTestedHardwareDefaults = hardwareIdentity.IsTestedNpb5RpBnb && !disableTestedHardwareDefaults && !disableWrites;
+            var allowLowPwm = IsEnabled("FANCONTROL_NPB5ITE_ALLOW_LOW_PWM");
+
             return new PluginOptions
             {
-                EnableHardwareWrites = IsEnabled("FANCONTROL_NPB5ITE_ENABLE_WRITES"),
-                EnableExperimentalRegisters = IsEnabled("FANCONTROL_NPB5ITE_ENABLE_EXPERIMENTAL_REGISTERS"),
-                AllowLowPwm = IsEnabled("FANCONTROL_NPB5ITE_ALLOW_LOW_PWM"),
+                HardwareIdentity = hardwareIdentity,
+                UsesTestedHardwareDefaults = usesTestedHardwareDefaults,
+                EnableHardwareWrites = !disableWrites && (usesTestedHardwareDefaults || IsEnabled("FANCONTROL_NPB5ITE_ENABLE_WRITES")),
+                EnableExperimentalRegisters = !disableWrites && (usesTestedHardwareDefaults || IsEnabled("FANCONTROL_NPB5ITE_ENABLE_EXPERIMENTAL_REGISTERS")),
+                AllowLowPwm = allowLowPwm,
                 AllowManualWithoutCpuTemperature = IsEnabled("FANCONTROL_NPB5ITE_ALLOW_MANUAL_WITHOUT_CPU_TEMP"),
-                MinimumPwmPercent = ReadMinimumPwmPercent()
+                MinimumPwmPercent = ReadMinimumPwmPercent(allowLowPwm)
             };
         }
 
-        private static float ReadMinimumPwmPercent()
+        private static float ReadMinimumPwmPercent(bool allowLowPwm)
         {
             var configured = ReadFloat("FANCONTROL_NPB5ITE_MIN_PWM_PERCENT");
             if (!configured.HasValue)
@@ -41,7 +57,7 @@ namespace FanControl.NPB5ITE
                 return DefaultMinimumPwmPercent;
             }
 
-            if (!IsEnabled("FANCONTROL_NPB5ITE_ALLOW_LOW_PWM"))
+            if (!allowLowPwm)
             {
                 return Clamp(configured.Value, DefaultMinimumPwmPercent, 100.0f);
             }

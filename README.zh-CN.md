@@ -16,7 +16,7 @@
 
 请只在理解并接受风险的情况下使用。初次配置时，请保留恢复 BIOS 风扇控制的方式，并监控 CPU 温度。
 
-默认行为是只读。手动 PWM 写入需要启用所有必需的环境变量，并以管理员权限运行。
+未知硬件上默认行为是只读。在已测试的 NPB5 / RPBNB 硬件指纹上，手动 PWM 写入默认启用，并需要管理员权限。
 
 ## 硬件状态
 
@@ -43,7 +43,7 @@
 - 手动写入前记录旧寄存器值，并在恢复时写回。
 - 通过已观察到的 fan2 tach 寄存器 `0x0E` 和 `0x19` 直接读取 CPU 风扇 RPM，公式为 `675000 / tachCount`。
 
-PWM 寄存器映射仍然需要显式 opt-in 环境变量，因此插件默认保持只读。
+PWM 寄存器映射只会在已测试的 NPB5 / RPBNB 硬件指纹上默认启用。未知硬件仍保持只读，除非用户显式 opt-in。
 
 ## 平台支持
 
@@ -99,20 +99,26 @@ Fan Control 需要使用与 `FanControl.Plugins.dll` 兼容的 .NET 10 构建。
 
 ## 运行时配置
 
-除非显式启用，否则手动 PWM 写入默认关闭。
+在已测试的 NPB5 / RPBNB 硬件指纹上，手动 PWM 写入默认启用。Fan Control 仍需要管理员权限才能直接访问 IT8613E/F 寄存器。
 
-推荐只读启动：
+已测试 NPB5 / RPBNB 的正常启动：
 
 ```powershell
-Start-Process 'C:\Program Files (x86)\FanControl\FanControl.exe'
+Start-Process 'C:\Program Files (x86)\FanControl\FanControl.exe' -Verb RunAs
 ```
 
-手动 PWM 启动：
+只读启动或紧急禁用：
+
+```powershell
+$env:FANCONTROL_NPB5ITE_DISABLE_WRITES='1'
+Start-Process 'C:\Program Files (x86)\FanControl\FanControl.exe' -Verb RunAs
+```
+
+未知硬件默认禁用写入。如需强制启用，需要显式配置：
 
 ```powershell
 $env:FANCONTROL_NPB5ITE_ENABLE_WRITES='1'
 $env:FANCONTROL_NPB5ITE_ENABLE_EXPERIMENTAL_REGISTERS='1'
-Start-Process 'C:\Program Files (x86)\FanControl\FanControl.exe' -Verb RunAs
 ```
 
 如果无法通过 LibreHardwareMonitor 获取 CPU 温度，手动写入会被阻止。仅限短时间受控测试时可使用：
@@ -132,8 +138,10 @@ $env:FANCONTROL_NPB5ITE_MIN_PWM_PERCENT='10'
 
 | 变量 | 默认值 | 说明 |
 | --- | --- | --- |
-| `FANCONTROL_NPB5ITE_ENABLE_WRITES` | disabled | 允许任何硬件写入路径。 |
-| `FANCONTROL_NPB5ITE_ENABLE_EXPERIMENTAL_REGISTERS` | disabled | 允许写入已观察到的 IT8613E fan2 寄存器映射。保留为显式安全 opt-in。 |
+| `FANCONTROL_NPB5ITE_DISABLE_WRITES` | disabled | 强制只读模式，即使当前是已测试的 NPB5 / RPBNB 硬件指纹。 |
+| `FANCONTROL_NPB5ITE_DISABLE_TESTED_HARDWARE_DEFAULTS` | disabled | 关闭已测试 NPB5 / RPBNB 硬件指纹的自动写入默认值。 |
+| `FANCONTROL_NPB5ITE_ENABLE_WRITES` | disabled | 在未识别硬件上允许硬件写入。已测试 NPB5 / RPBNB 不需要。 |
+| `FANCONTROL_NPB5ITE_ENABLE_EXPERIMENTAL_REGISTERS` | disabled | 在未识别硬件上允许写入已观察到的 IT8613E fan2 寄存器映射。已测试 NPB5 / RPBNB 不需要。 |
 | `FANCONTROL_NPB5ITE_ALLOW_MANUAL_WITHOUT_CPU_TEMP` | disabled | CPU 温度不可用时仍允许手动 PWM。仅限短时间测试。 |
 | `FANCONTROL_NPB5ITE_ALLOW_LOW_PWM` | disabled | 允许 `FANCONTROL_NPB5ITE_MIN_PWM_PERCENT` 低于 35%。 |
 | `FANCONTROL_NPB5ITE_MIN_PWM_PERCENT` | `35` | 最低手动 PWM。启用低 PWM opt-in 后，硬下限为 10%。 |
@@ -192,7 +200,7 @@ FanControl.NPB5ITE.pdb
 本地 release 打包：
 
 ```powershell
-.\scripts\package-release.ps1 -Version 0.2.0
+.\scripts\package-release.ps1 -Version 0.2.1
 ```
 
 不要包含本地诊断输出、部署日志或 Fan Control 安装 DLL。
@@ -220,8 +228,6 @@ dotnet run --project ".\tools\FanControl.NPB5ITE.Diagnostics\FanControl.NPB5ITE.
 写入探测：
 
 ```powershell
-$env:FANCONTROL_NPB5ITE_ENABLE_WRITES='1'
-$env:FANCONTROL_NPB5ITE_ENABLE_EXPERIMENTAL_REGISTERS='1'
 dotnet run --project ".\tools\FanControl.NPB5ITE.Diagnostics\FanControl.NPB5ITE.Diagnostics.csproj" -c Release -- ".\diagnostics" --label pwm60-probe --set-pwm 60 --restore-after-seconds 8
 ```
 
@@ -231,7 +237,7 @@ dotnet run --project ".\tools\FanControl.NPB5ITE.Diagnostics\FanControl.NPB5ITE.
 
 - 目前只调查过 NPB5/RPBNB IT8613E/F 路径。
 - NPB7、NAB5、NAB6 和其他类似 Venus Series 系统在启用 PWM 控制前应先验证。
-- PWM 写入需要显式 opt-in。
+- PWM 写入只在已测试的 NPB5 / RPBNB 硬件指纹上默认启用。其他系统需要显式 opt-in。
 - Auto restore 基于旧值寄存器快照，而不是完全确认的 BIOS Auto 寄存器映射。
 - Direct IT8613E tach RPM 目前只在一台 NPB5 / Windows 11 上验证。
 - Fan Control 必须以管理员权限运行，才能直接读取 IT8613E HWM tach 或写入 IT8613E HWM 寄存器。
