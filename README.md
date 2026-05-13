@@ -253,6 +253,16 @@ diagnostics                             Local diagnostic captures, ignored by gi
 dist                                    Local release/deploy output, ignored by git
 ```
 
+## Acknowledgements
+
+Thanks to:
+
+- [Fan Control](https://github.com/Rem0o/FanControl.Releases) for the plugin platform and the excellent fan-control UI this project builds on.
+- [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor) and its PawnIO/LPC access layer, which make the low-level IT8613E/F register access path possible from managed code.
+- HWiNFO for providing an early RPM reference source while the direct IT8613E/F tach path was being validated.
+- The Fan Control community for the hardware discussions and troubleshooting knowledge that made this kind of model-specific plugin practical.
+- The tested Minisforum NPB5 / RPBNB setup and its diagnostic captures, which provided the register evidence for direct RPM reading and PWM control.
+
 ## License
 
 Licensed under the GNU Affero General Public License v3.0 or later. See `LICENSE`.

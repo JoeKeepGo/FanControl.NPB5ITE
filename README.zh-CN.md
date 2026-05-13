@@ -253,6 +253,16 @@ diagnostics                             本地诊断捕获，git 忽略
 dist                                    本地 release/deploy 输出，git 忽略
 ```
 
+## 致谢
+
+感谢：
+
+- [Fan Control](https://github.com/Rem0o/FanControl.Releases) 提供插件平台和优秀的风扇控制界面，本项目正是构建在它之上。
+- [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor) 及其 PawnIO/LPC 访问层，使得从托管代码访问底层 IT8613E/F 寄存器成为可能。
+- HWiNFO 在 direct IT8613E/F tach 路径验证期间提供了早期 RPM 参考来源。
+- Fan Control 社区积累的硬件讨论和排障知识，让这种面向具体机型的插件变得可行。
+- 已测试的 Minisforum NPB5 / RPBNB 环境及其诊断捕获，为 direct RPM 读取和 PWM 控制提供了寄存器证据。
+
 ## 许可证
 
 使用 GNU Affero General Public License v3.0 or later 授权。见 `LICENSE`。
