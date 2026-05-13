@@ -1,3 +1,5 @@
+using System;
+
 namespace FanControl.NPB5ITE.HwInfo
 {
     public sealed class FanRpmReading
@@ -20,7 +22,7 @@ namespace FanControl.NPB5ITE.HwInfo
 
         public static FanRpmReading Success(float rpm, string source)
         {
-            return new FanRpmReading(true, rpm, source, string.Empty);
+            return new FanRpmReading(true, MathF.Round(rpm), source, string.Empty);
         }
 
         public static FanRpmReading Unavailable(string source, string message)

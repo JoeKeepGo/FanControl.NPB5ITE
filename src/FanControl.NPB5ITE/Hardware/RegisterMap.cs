@@ -9,6 +9,9 @@ namespace FanControl.NPB5ITE.Hardware
         public const byte EnterConfigurationModeKey = 0x87;
         public const byte ExitConfigurationModeRegister = 0x02;
         public const byte ExitConfigurationModeValue = 0x02;
+        public const byte CpuFanTachLowRegister = 0x0E;
+        public const byte CpuFanTachHighRegister = 0x19;
+        public const int It8613eFanRpmBase = 675000;
 
         public static readonly PwmRegisterSet? ConfirmedCpuFanControl = null;
 

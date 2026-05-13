@@ -6,7 +6,7 @@ This plugin exposes:
 
 - `NPB5 CPU Fan`: CPU fan RPM sensor.
 - `NPB5 CPU Fan Control`: Fan Control PWM control sensor.
-- A diagnostics tool for LibreHardwareMonitor, HWiNFO Gadget/VSB, PWM capability, and read-only Super I/O / IT8613E register snapshots.
+- A diagnostics tool for direct IT8613E tach/RPM reads, LibreHardwareMonitor, HWiNFO Gadget/VSB fallback, PWM capability, and read-only Super I/O / IT8613E register snapshots.
 
 ## Safety Notice
 
@@ -39,6 +39,7 @@ Current PWM implementation:
 - Uses IT8613E HWM indexed register access through LibreHardwareMonitor/PawnIO.
 - Converts Fan Control percentage to 8-bit PWM duty `0..255`.
 - Restores old register values captured before manual writes.
+- Reads CPU fan RPM directly from the observed fan2 tach registers `0x0E` and `0x19` using `675000 / tachCount`.
 
 The current register map is still marked experimental. `RegisterMap.ConfirmedCpuFanControl` is intentionally empty.
 
@@ -56,8 +57,9 @@ Fan Control must be a .NET 10 build compatible with `FanControl.Plugins.dll`.
 
 ## Features
 
-- Fan RPM import from LibreHardwareMonitor motherboard sensors.
-- HWiNFO Gadget/VSB RPM fallback when LibreHardwareMonitor does not expose the NPB5 fan.
+- Direct CPU fan RPM reads from IT8613E/F HWM fan2 tach registers.
+- LibreHardwareMonitor motherboard fan RPM fallback.
+- HWiNFO Gadget/VSB RPM fallback.
 - Fan Control manual/curve PWM sensor with coalesced background writes.
 - Default 35% minimum PWM.
 - Optional experimental low-PWM floor down to 10%.
@@ -70,10 +72,11 @@ Current HWiNFO status:
 
 - PWM writes do not depend on HWiNFO.
 - CPU temperature reads do not depend on HWiNFO.
-- On the tested NPB5, Fan RPM currently depends on HWiNFO Gadget/VSB because LibreHardwareMonitor does not expose a positive NPB5 CPU fan RPM sensor.
+- On the tested NPB5, CPU fan RPM no longer depends on HWiNFO. The plugin first reads IT8613E/F tach registers directly.
+- HWiNFO Gadget/VSB remains a fallback when direct tach and LibreHardwareMonitor motherboard RPM sources are unavailable.
 - If HWiNFO is not running and no other RPM source succeeds, the safety policy restores previous/automatic control instead of applying manual PWM.
 
-Full standalone operation without HWiNFO is on the roadmap.
+The plugin still requires low-level port access through LibreHardwareMonitor/PawnIO or Fan Control's bundled `LibreHardwareMonitorLib.dll`; this is separate from requiring the HWiNFO64 application.
 
 ## Install From Release
 
@@ -85,10 +88,12 @@ Full standalone operation without HWiNFO is on the roadmap.
    C:\Program Files (x86)\FanControl\Plugins
    ```
 
-4. Start Fan Control as Administrator if you intend to test PWM writes.
+4. Start Fan Control as Administrator for direct IT8613E/F tach reads and for PWM write tests.
 5. Add the `NPB5 CPU Fan` RPM sensor and `NPB5 CPU Fan Control` control sensor in Fan Control.
 
 If Windows blocks the downloaded DLL, open the file properties and unblock it before starting Fan Control.
+
+Without Administrator access, direct Super I/O reads may fail with chip ID `0x0000`; in that case the plugin falls back to LibreHardwareMonitor fan sensors or HWiNFO Gadget/VSB if available.
 
 ## Runtime Configuration
 
@@ -185,12 +190,12 @@ FanControl.NPB5ITE.pdb
 Local release package:
 
 ```powershell
-.\scripts\package-release.ps1 -Version 0.1.0
+.\scripts\package-release.ps1 -Version 0.2.0
 ```
 
 Do not include local diagnostic output, deployment logs, or Fan Control installation DLLs.
 
-Release packages are currently built locally. GitHub-hosted release builds are not enabled yet because the deployable plugin must be compiled against the real `FanControl.Plugins.dll`, which is not committed to this repository.
+Release packages are built locally against the real `FanControl.Plugins.dll`.
 
 ## Diagnostics
 
@@ -207,7 +212,7 @@ Suggested register confirmation workflow:
 1. Set fan mode outside this plugin.
 2. Capture a read-only snapshot for BIOS Auto.
 3. Capture snapshots for known BIOS manual PWM values, for example raw `127`, `153`, and `204`.
-4. Compare HWiNFO RPM, LibreHardwareMonitor output, PWM capability output, and IT8613E HWM register dumps.
+4. Compare direct IT8613E RPM, HWiNFO RPM, LibreHardwareMonitor output, PWM capability output, and IT8613E HWM register dumps.
 5. Move registers from experimental to confirmed only after repeated captures show stable, predictable behavior.
 
 Experimental write probe:
@@ -226,16 +231,14 @@ The probe writes PWM, captures snapshots, waits, and restores the previous regis
 - NPB7, NAB5, NAB6, and other similar Venus Series systems are theoretical targets only.
 - PWM writes remain experimental and require explicit opt-in.
 - Auto restore is based on old-value register snapshots, not a fully confirmed BIOS Auto register map.
-- HWiNFO fallback is currently required for RPM feedback on the tested NPB5.
-- Fan Control must run elevated for experimental IT8613E HWM register writes.
+- Direct IT8613E tach RPM has only been verified on one NPB5/Windows 11 system.
+- Fan Control must run elevated for direct IT8613E HWM tach reads and experimental IT8613E HWM register writes.
 
 ## Roadmap
 
-- Confirm direct IT8613E tach/RPM register decoding so the plugin can run without HWiNFO.
-- Repeat read-only diagnostics on NPB7, NAB5, and NAB6 before enabling any model-specific claims.
-- Confirm BIOS Auto restore registers and values instead of relying only on old-value snapshots.
-- Move the PWM map from experimental to confirmed after repeated NPB5 captures prove stable behavior.
-- Add GitHub-hosted release builds once the Fan Control plugin API reference can be restored in CI without committing local installation DLLs.
+This project is currently considered stable enough for the tested NPB5 / Windows 11 setup. No active feature roadmap is planned.
+
+Future changes are expected to be limited to critical safety fixes, compatibility fixes for the tested setup, or clearly verified reports from the same hardware family.
 
 ## Repository Layout
 

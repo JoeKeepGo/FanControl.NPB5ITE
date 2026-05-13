@@ -56,9 +56,41 @@ namespace FanControl.NPB5ITE.Hardware
 
         public FanRpmReading ReadCpuFanRpm()
         {
-            return FanRpmReading.Unavailable(
-                SourceName,
-                "Direct IT8613F RPM registers are not confirmed for NPB5 yet.");
+            lock (_sync)
+            {
+                try
+                {
+                    if (!_ioPort.IsAvailable)
+                    {
+                        return FanRpmReading.Unavailable(SourceName, "Low-level I/O provider is unavailable.");
+                    }
+
+                    var hwmBase = ResolveHwmBase();
+                    var configPort = RequireConfigPort();
+                    var tachCount = ReadCpuFanTachCount(hwmBase, configPort);
+
+                    if (tachCount == 0 || tachCount >= 0xFFFF)
+                    {
+                        return FanRpmReading.Unavailable(
+                            SourceName,
+                            "CPU fan tach count is invalid: 0x" + tachCount.ToString("X4", CultureInfo.InvariantCulture) + ".");
+                    }
+
+                    var rpm = RegisterMap.It8613eFanRpmBase / (float)tachCount;
+                    if (rpm <= 0.0f || rpm > 20000.0f)
+                    {
+                        return FanRpmReading.Unavailable(
+                            SourceName,
+                            "CPU fan RPM computed outside the expected range: " + rpm.ToString("0", CultureInfo.InvariantCulture) + ".");
+                    }
+
+                    return FanRpmReading.Success(rpm, SourceName);
+                }
+                catch (Exception exception)
+                {
+                    return FanRpmReading.Unavailable(SourceName, exception.GetType().Name + ": " + exception.Message);
+                }
+            }
         }
 
         public void ApplyManualPwm(float pwmPercent)
@@ -380,8 +412,8 @@ namespace FanControl.NPB5ITE.Hardware
                 (Name: "fan4 pwm duty ext", Register: (byte)0x7B),
                 (Name: "fan1 tach low", Register: (byte)0x0D),
                 (Name: "fan1 tach high", Register: (byte)0x18),
-                (Name: "fan2 tach low", Register: (byte)0x0E),
-                (Name: "fan2 tach high", Register: (byte)0x19),
+                (Name: "fan2 tach low", Register: RegisterMap.CpuFanTachLowRegister),
+                (Name: "fan2 tach high", Register: RegisterMap.CpuFanTachHighRegister),
                 (Name: "fan3 tach low", Register: (byte)0x0F),
                 (Name: "fan3 tach high", Register: (byte)0x1A),
                 (Name: "vendor id", Register: (byte)0x58)
@@ -417,6 +449,14 @@ namespace FanControl.NPB5ITE.Hardware
 
             _ioPort.WriteByte(addressPort, register);
             return _ioPort.ReadByte(dataPort);
+        }
+
+        private ushort ReadCpuFanTachCount(ushort hwmBase, ISuperIoConfigPort configPort)
+        {
+            var low = ReadHardwareMonitorByte(hwmBase, RegisterMap.CpuFanTachLowRegister, configPort);
+            var high = ReadHardwareMonitorByte(hwmBase, RegisterMap.CpuFanTachHighRegister, configPort);
+
+            return (ushort)((high << 8) | low);
         }
 
         private byte ReadConfigByte(ushort indexPort, ushort dataPort, byte register)

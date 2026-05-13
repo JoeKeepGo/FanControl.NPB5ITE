@@ -29,6 +29,10 @@ namespace FanControl.NPB5ITE.Tests
             PwmCapabilityAllowsConfirmedMapWithIoAndOptIn();
             PwmCapabilityAllowsExperimentalMapWithExplicitOptIn();
             HardwareStillRefusesWithoutConfirmedRegisters();
+            DirectIteTachCountReadsCpuFanRpm();
+            DirectIteTachRejectsInvalidCount();
+            CompositeFanRpmSourceUsesDirectSourceBeforeFallbacks();
+            FanRpmReadingRoundsToWholeRpm();
             ManualPwmWritesModeAndRawDutyWithSnapshot();
             RepeatedManualPwmDoesNotRewriteHardware();
             PwmRaw127IsAboutHalfDuty();
@@ -325,6 +329,64 @@ namespace FanControl.NPB5ITE.Tests
             });
         }
 
+        private static void DirectIteTachCountReadsCpuFanRpm()
+        {
+            var ioPort = new FakeSuperIoPort(isAvailable: true);
+            ioPort.SetConfigWord(0x20, 0x8613);
+            ioPort.SetConfigWord(0x60, 0x0A30);
+            ioPort.SetHardwareMonitorByte(0x0E, 0x87);
+            ioPort.SetHardwareMonitorByte(0x19, 0x00);
+
+            using (var hardware = new Ite8613fIo(ioPort, PluginOptions.FromEnvironment(), new PluginLog()))
+            {
+                var reading = hardware.ReadCpuFanRpm();
+
+                AssertEqual(true, reading.Succeeded, nameof(DirectIteTachCountReadsCpuFanRpm));
+                AssertEqual(5000.0f, Round(reading.Rpm.GetValueOrDefault()), nameof(DirectIteTachCountReadsCpuFanRpm));
+                AssertEqual("IT8613F direct", reading.Source, nameof(DirectIteTachCountReadsCpuFanRpm));
+            }
+        }
+
+        private static void DirectIteTachRejectsInvalidCount()
+        {
+            var ioPort = new FakeSuperIoPort(isAvailable: true);
+            ioPort.SetConfigWord(0x20, 0x8613);
+            ioPort.SetConfigWord(0x60, 0x0A30);
+            ioPort.SetHardwareMonitorByte(0x0E, 0xFF);
+            ioPort.SetHardwareMonitorByte(0x19, 0xFF);
+
+            using (var hardware = new Ite8613fIo(ioPort, PluginOptions.FromEnvironment(), new PluginLog()))
+            {
+                var reading = hardware.ReadCpuFanRpm();
+
+                AssertEqual(false, reading.Succeeded, nameof(DirectIteTachRejectsInvalidCount));
+                AssertContains("tach count is invalid", reading.Message, nameof(DirectIteTachRejectsInvalidCount));
+            }
+        }
+
+        private static void CompositeFanRpmSourceUsesDirectSourceBeforeFallbacks()
+        {
+            using (var source = new CompositeFanRpmSource(new IFanRpmSource[]
+            {
+                new FakeFanRpmSource(FanRpmReading.Success(4321.0f, "IT8613F direct")),
+                new FakeFanRpmSource(FanRpmReading.Success(1234.0f, "HWiNFO"))
+            }))
+            {
+                var reading = source.ReadCpuFanRpm();
+
+                AssertEqual(true, reading.Succeeded, nameof(CompositeFanRpmSourceUsesDirectSourceBeforeFallbacks));
+                AssertEqual(4321.0f, reading.Rpm.GetValueOrDefault(), nameof(CompositeFanRpmSourceUsesDirectSourceBeforeFallbacks));
+                AssertEqual("IT8613F direct", reading.Source, nameof(CompositeFanRpmSourceUsesDirectSourceBeforeFallbacks));
+            }
+        }
+
+        private static void FanRpmReadingRoundsToWholeRpm()
+        {
+            var reading = FanRpmReading.Success(2934.78f, "Test");
+
+            AssertEqual(2935.0f, reading.Rpm.GetValueOrDefault(), nameof(FanRpmReadingRoundsToWholeRpm));
+        }
+
         private static void ManualPwmWritesModeAndRawDutyWithSnapshot()
         {
             WithEnvironment("FANCONTROL_NPB5ITE_ENABLE_WRITES", "1", () =>
@@ -473,6 +535,103 @@ namespace FanControl.NPB5ITE.Tests
             {
                 _values[port] = value;
                 Writes.Add((port, value));
+            }
+
+            public void Dispose()
+            {
+            }
+        }
+
+        private sealed class FakeFanRpmSource : IFanRpmSource
+        {
+            private readonly FanRpmReading _reading;
+
+            public FakeFanRpmSource(FanRpmReading reading)
+            {
+                _reading = reading;
+            }
+
+            public FanRpmReading ReadCpuFanRpm()
+            {
+                return _reading;
+            }
+        }
+
+        private sealed class FakeSuperIoPort : IIoPort, ISuperIoConfigPort
+        {
+            private readonly System.Collections.Generic.Dictionary<byte, byte> _configValues = new System.Collections.Generic.Dictionary<byte, byte>();
+            private readonly System.Collections.Generic.Dictionary<byte, byte> _hardwareMonitorValues = new System.Collections.Generic.Dictionary<byte, byte>();
+            private byte _selectedHardwareMonitorRegister;
+
+            public FakeSuperIoPort(bool isAvailable)
+            {
+                IsAvailable = isAvailable;
+            }
+
+            public bool IsAvailable { get; }
+
+            public void SetConfigWord(byte register, ushort value)
+            {
+                _configValues[register] = (byte)(value >> 8);
+                _configValues[(byte)(register + 1)] = (byte)(value & 0xFF);
+            }
+
+            public void SetHardwareMonitorByte(byte register, byte value)
+            {
+                _hardwareMonitorValues[register] = value;
+            }
+
+            public byte ReadByte(ushort port)
+            {
+                return ReadIoPortByte(port);
+            }
+
+            public void WriteByte(ushort port, byte value)
+            {
+                WriteIoPortByte(port, value);
+            }
+
+            public void SelectSlot(int slot)
+            {
+            }
+
+            public byte ReadIoPortByte(ushort port)
+            {
+                if (port == 0x0A36)
+                {
+                    return _hardwareMonitorValues.TryGetValue(_selectedHardwareMonitorRegister, out var value) ? value : (byte)0;
+                }
+
+                return 0;
+            }
+
+            public void WriteIoPortByte(ushort port, byte value)
+            {
+                if (port == 0x0A35)
+                {
+                    _selectedHardwareMonitorRegister = value;
+                }
+            }
+
+            public void FindBars()
+            {
+            }
+
+            public byte ReadConfigByte(byte register)
+            {
+                return _configValues.TryGetValue(register, out var value) ? value : (byte)0;
+            }
+
+            public ushort ReadConfigWord(byte register)
+            {
+                var high = ReadConfigByte(register);
+                var low = ReadConfigByte((byte)(register + 1));
+                return (ushort)((high << 8) | low);
+            }
+
+            public void WriteConfigByte(byte register, byte value)
+            {
+                _configValues[register] = value;
             }
 
             public void Dispose()

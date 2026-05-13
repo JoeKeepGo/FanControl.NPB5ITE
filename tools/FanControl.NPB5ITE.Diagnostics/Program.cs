@@ -43,6 +43,10 @@ namespace FanControl.NPB5ITE.Diagnostics
                 var label = options.SafeLabel;
                 var sioRegisterDump = CreateReadOnlyRegisterDump(label);
                 sioRegisterDump.AddNote("Process elevated: " + isElevated + ".");
+                var directFanReading = ReadDirectCpuFanRpm();
+                sioRegisterDump.AddNote(directFanReading.Succeeded
+                    ? "Direct IT8613E CPU fan RPM: " + directFanReading.Rpm.GetValueOrDefault().ToString("0", CultureInfo.InvariantCulture) + "."
+                    : "Direct IT8613E CPU fan RPM unavailable: " + directFanReading.Message);
                 var textPath = Path.Combine(outputDirectory, "lhm-sensors-" + label + "-" + timestamp + ".txt");
                 var jsonPath = Path.Combine(outputDirectory, "lhm-sensors-" + label + "-" + timestamp + ".json");
                 var reportPath = Path.Combine(outputDirectory, "lhm-report-" + label + "-" + timestamp + ".txt");
@@ -75,6 +79,10 @@ namespace FanControl.NPB5ITE.Diagnostics
                 Console.WriteLine("Process elevated: " + isElevated);
                 Console.WriteLine(pwmCapability.Summary);
 
+                Console.WriteLine(directFanReading.Succeeded
+                    ? "Direct IT8613E CPU fan RPM: " + directFanReading.Rpm.GetValueOrDefault().ToString("0", CultureInfo.InvariantCulture)
+                    : "Direct IT8613E CPU fan RPM unavailable: " + directFanReading.Message);
+
                 var fanReading = hwInfoSnapshot.FindBestCpuFanRpm();
                 Console.WriteLine(fanReading.Succeeded
                     ? "HWiNFO CPU fan RPM: " + fanReading.Rpm.GetValueOrDefault().ToString("0", CultureInfo.InvariantCulture)
@@ -91,6 +99,14 @@ namespace FanControl.NPB5ITE.Diagnostics
             }
 
             return 0;
+        }
+
+        private static FanRpmReading ReadDirectCpuFanRpm()
+        {
+            using (var hardware = new Ite8613fIo(new LibreHardwareMonitorLpcIoPort(), PluginOptions.FromEnvironment(), new PluginLog()))
+            {
+                return hardware.ReadCpuFanRpm();
+            }
         }
 
         private static PwmControlCapability CreatePwmCapability(bool isProcessElevated)
@@ -131,6 +147,10 @@ namespace FanControl.NPB5ITE.Diagnostics
 
                 var afterSnapshot = HwInfoVsbSnapshot.Capture();
                 var afterReading = afterSnapshot.FindBestCpuFanRpm();
+                var afterDirectReading = hardware.ReadCpuFanRpm();
+                Console.WriteLine(afterDirectReading.Succeeded
+                    ? "Direct IT8613E CPU fan RPM after experimental PWM: " + afterDirectReading.Rpm.GetValueOrDefault().ToString("0", CultureInfo.InvariantCulture)
+                    : "Direct IT8613E CPU fan RPM after experimental PWM unavailable: " + afterDirectReading.Message);
                 Console.WriteLine(afterReading.Succeeded
                     ? "HWiNFO CPU fan RPM after experimental PWM: " + afterReading.Rpm.GetValueOrDefault().ToString("0", CultureInfo.InvariantCulture)
                     : "HWiNFO CPU fan RPM after experimental PWM unavailable: " + afterReading.Message);

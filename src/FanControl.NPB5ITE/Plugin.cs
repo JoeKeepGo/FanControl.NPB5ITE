@@ -52,6 +52,7 @@ namespace FanControl.NPB5ITE
             var rpmSource = new CompositeFanRpmSource(
                 new IFanRpmSource[]
                 {
+                    new BorrowedFanRpmSource(_hardware!),
                     new LibreHardwareMonitorFanRpmSource(_log),
                     new HwInfoFanRpmSource(_log)
                 });
