@@ -1,0 +1,54 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <OutputType>Library</OutputType>
+    <AssemblyName>FanControl.NPB5ITE</AssemblyName>
+    <RootNamespace>FanControl.NPB5ITE</RootNamespace>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <Deterministic>true</Deterministic>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <FanControlPluginsPath>$(MSBuildProjectDirectory)\..\..\lib\FanControl.Plugins.dll</FanControlPluginsPath>
+    <LibreHardwareMonitorPath>$(MSBuildProjectDirectory)\..\..\lib\LibreHardwareMonitorLib.dll</LibreHardwareMonitorPath>
+    <FanControlInstallLibreHardwareMonitorPath>C:\Program Files (x86)\FanControl\LibreHardwareMonitorLib.dll</FanControlInstallLibreHardwareMonitorPath>
+    <UseFanControlApiStub Condition="!Exists('$(FanControlPluginsPath)')">true</UseFanControlApiStub>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="Exists('$(LibreHardwareMonitorPath)')">
+    <LibreHardwareMonitorReferencePath>$(LibreHardwareMonitorPath)</LibreHardwareMonitorReferencePath>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(LibreHardwareMonitorReferencePath)' == '' and Exists('$(FanControlInstallLibreHardwareMonitorPath)')">
+    <LibreHardwareMonitorReferencePath>$(FanControlInstallLibreHardwareMonitorPath)</LibreHardwareMonitorReferencePath>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(LibreHardwareMonitorReferencePath)' != ''">
+    <DefineConstants>$(DefineConstants);USE_LIBREHARDWAREMONITOR</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="FanControlApi\PluginApiStubs.cs" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(UseFanControlApiStub)' != 'true'">
+    <Reference Include="FanControl.Plugins">
+      <HintPath>$(FanControlPluginsPath)</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(LibreHardwareMonitorReferencePath)' != ''">
+    <Reference Include="LibreHardwareMonitorLib">
+      <HintPath>$(LibreHardwareMonitorReferencePath)</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(UseFanControlApiStub)' == 'true'">
+    <Compile Include="FanControlApi\PluginApiStubs.cs" />
+  </ItemGroup>
+</Project>

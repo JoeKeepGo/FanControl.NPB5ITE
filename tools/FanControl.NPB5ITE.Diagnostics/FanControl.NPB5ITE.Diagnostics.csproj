@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>FanControl.NPB5ITE.Diagnostics</AssemblyName>
+    <RootNamespace>FanControl.NPB5ITE.Diagnostics</RootNamespace>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
+    <LibreHardwareMonitorPath>$(MSBuildProjectDirectory)\..\..\lib\LibreHardwareMonitorLib.dll</LibreHardwareMonitorPath>
+    <FanControlInstallLibreHardwareMonitorPath>C:\Program Files (x86)\FanControl\LibreHardwareMonitorLib.dll</FanControlInstallLibreHardwareMonitorPath>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="Exists('$(LibreHardwareMonitorPath)')">
+    <LibreHardwareMonitorReferencePath>$(LibreHardwareMonitorPath)</LibreHardwareMonitorReferencePath>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(LibreHardwareMonitorReferencePath)' == '' and Exists('$(FanControlInstallLibreHardwareMonitorPath)')">
+    <LibreHardwareMonitorReferencePath>$(FanControlInstallLibreHardwareMonitorPath)</LibreHardwareMonitorReferencePath>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(LibreHardwareMonitorReferencePath)' != ''">
+    <Reference Include="LibreHardwareMonitorLib">
+      <HintPath>$(LibreHardwareMonitorReferencePath)</HintPath>
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\FanControl.NPB5ITE\FanControl.NPB5ITE.csproj" />
+  </ItemGroup>
+</Project>

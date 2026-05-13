@@ -1,0 +1,30 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FanControl.NPB5ITE", "src\FanControl.NPB5ITE\FanControl.NPB5ITE.csproj", "{E96C18D8-7DD5-4F42-8A0B-5CB5306D6E6B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FanControl.NPB5ITE.Tests", "tests\FanControl.NPB5ITE.Tests\FanControl.NPB5ITE.Tests.csproj", "{0349A926-CB7A-479A-9822-294F7334BB97}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FanControl.NPB5ITE.Diagnostics", "tools\FanControl.NPB5ITE.Diagnostics\FanControl.NPB5ITE.Diagnostics.csproj", "{549AD93E-5FC1-4C27-9A5F-96EB4CF11BD1}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{E96C18D8-7DD5-4F42-8A0B-5CB5306D6E6B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E96C18D8-7DD5-4F42-8A0B-5CB5306D6E6B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E96C18D8-7DD5-4F42-8A0B-5CB5306D6E6B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E96C18D8-7DD5-4F42-8A0B-5CB5306D6E6B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0349A926-CB7A-479A-9822-294F7334BB97}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0349A926-CB7A-479A-9822-294F7334BB97}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0349A926-CB7A-479A-9822-294F7334BB97}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0349A926-CB7A-479A-9822-294F7334BB97}.Release|Any CPU.Build.0 = Release|Any CPU
+		{549AD93E-5FC1-4C27-9A5F-96EB4CF11BD1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{549AD93E-5FC1-4C27-9A5F-96EB4CF11BD1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{549AD93E-5FC1-4C27-9A5F-96EB4CF11BD1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{549AD93E-5FC1-4C27-9A5F-96EB4CF11BD1}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
