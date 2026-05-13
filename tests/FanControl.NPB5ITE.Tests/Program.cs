@@ -17,13 +17,13 @@ namespace FanControl.NPB5ITE.Tests
             MissingRpmRestoresAuto();
             DisabledWritesRestoreAuto();
             ZeroPwmRestoresAuto();
-            LowPwmRequiresExplicitOptIn();
-            ExperimentalLowPwmAllowsTenPercentMinimum();
+            TenPercentMinimumPwmIsAllowedByDefault();
+            MinimumPwmHardFloorIsTenPercent();
             SafetyPolicyRejectsInvalidMinimumPwm();
             TestedNpb5HardwareDefaultsEnableWrites();
             DisableWritesOverridesTestedHardwareDefaults();
             UnknownHardwareDefaultsRemainReadOnly();
-            EnvironmentMinimumPwmCannotBypassDefaultWithoutLowPwmOptIn();
+            EnvironmentMinimumPwmUsesTenPercentHardFloor();
             RegisterDumpComparerFindsChangedValues();
             HwInfoRawRpmIsParsed();
             HwInfoFormattedRpmFallbackIsParsed();
@@ -56,7 +56,7 @@ namespace FanControl.NPB5ITE.Tests
             });
 
             AssertEqual(FanSafetyAction.ApplyManualPwm, decision.Action, nameof(MinimumPwmIsClamped));
-            AssertEqual(35.0f, decision.PwmPercent.GetValueOrDefault(), nameof(MinimumPwmIsClamped));
+            AssertEqual(10.0f, decision.PwmPercent.GetValueOrDefault(), nameof(MinimumPwmIsClamped));
         }
 
         private static void CriticalTemperatureForcesFullSpeed()
@@ -114,32 +114,32 @@ namespace FanControl.NPB5ITE.Tests
             AssertEqual(false, decision.PwmPercent.HasValue, nameof(ZeroPwmRestoresAuto));
         }
 
-        private static void LowPwmRequiresExplicitOptIn()
-        {
-            try
-            {
-                new FanSafetyPolicy(new FanSafetyOptions
-                {
-                    MinimumPwmPercent = 10.0f,
-                    CriticalCpuTemperatureCelsius = 85.0f,
-                    AllowManualWithoutCpuTemperature = true
-                });
-            }
-            catch (ArgumentOutOfRangeException)
-            {
-                return;
-            }
-
-            throw new InvalidOperationException(nameof(LowPwmRequiresExplicitOptIn) + " failed. Expected ArgumentOutOfRangeException.");
-        }
-
-        private static void ExperimentalLowPwmAllowsTenPercentMinimum()
+        private static void TenPercentMinimumPwmIsAllowedByDefault()
         {
             var policy = new FanSafetyPolicy(new FanSafetyOptions
             {
                 MinimumPwmPercent = 10.0f,
                 CriticalCpuTemperatureCelsius = 85.0f,
-                AllowLowPwm = true,
+                AllowManualWithoutCpuTemperature = true
+            });
+
+            var decision = policy.Evaluate(new FanSafetyInputs
+            {
+                RequestedPwmPercent = 10.0f,
+                FanRpmReadSucceeded = true,
+                HardwareWritesEnabled = true
+            });
+
+            AssertEqual(FanSafetyAction.ApplyManualPwm, decision.Action, nameof(TenPercentMinimumPwmIsAllowedByDefault));
+            AssertEqual(10.0f, decision.PwmPercent.GetValueOrDefault(), nameof(TenPercentMinimumPwmIsAllowedByDefault));
+        }
+
+        private static void MinimumPwmHardFloorIsTenPercent()
+        {
+            var policy = new FanSafetyPolicy(new FanSafetyOptions
+            {
+                MinimumPwmPercent = 10.0f,
+                CriticalCpuTemperatureCelsius = 85.0f,
                 AllowManualWithoutCpuTemperature = true
             });
 
@@ -150,8 +150,8 @@ namespace FanControl.NPB5ITE.Tests
                 HardwareWritesEnabled = true
             });
 
-            AssertEqual(FanSafetyAction.ApplyManualPwm, decision.Action, nameof(ExperimentalLowPwmAllowsTenPercentMinimum));
-            AssertEqual(10.0f, decision.PwmPercent.GetValueOrDefault(), nameof(ExperimentalLowPwmAllowsTenPercentMinimum));
+            AssertEqual(FanSafetyAction.ApplyManualPwm, decision.Action, nameof(MinimumPwmHardFloorIsTenPercent));
+            AssertEqual(10.0f, decision.PwmPercent.GetValueOrDefault(), nameof(MinimumPwmHardFloorIsTenPercent));
         }
 
         private static void SafetyPolicyRejectsInvalidMinimumPwm()
@@ -184,7 +184,7 @@ namespace FanControl.NPB5ITE.Tests
                 AssertEqual(true, options.EnableHardwareWrites, nameof(TestedNpb5HardwareDefaultsEnableWrites));
                 AssertEqual(true, options.EnableExperimentalRegisters, nameof(TestedNpb5HardwareDefaultsEnableWrites));
                 AssertEqual(false, options.AllowLowPwm, nameof(TestedNpb5HardwareDefaultsEnableWrites));
-                AssertEqual(35.0f, options.MinimumPwmPercent, nameof(TestedNpb5HardwareDefaultsEnableWrites));
+                AssertEqual(10.0f, options.MinimumPwmPercent, nameof(TestedNpb5HardwareDefaultsEnableWrites));
             });
         }
 
@@ -215,37 +215,31 @@ namespace FanControl.NPB5ITE.Tests
             });
         }
 
-        private static void EnvironmentMinimumPwmCannotBypassDefaultWithoutLowPwmOptIn()
+        private static void EnvironmentMinimumPwmUsesTenPercentHardFloor()
         {
-            WithEnvironment("FANCONTROL_NPB5ITE_ALLOW_LOW_PWM", null, () =>
+            WithoutPluginEnvironment(() =>
             {
                 WithEnvironment("FANCONTROL_NPB5ITE_MIN_PWM_PERCENT", "10", () =>
                 {
                     var options = PluginOptions.FromEnvironment();
 
-                    AssertEqual(false, options.AllowLowPwm, nameof(EnvironmentMinimumPwmCannotBypassDefaultWithoutLowPwmOptIn));
-                    AssertEqual(35.0f, options.MinimumPwmPercent, nameof(EnvironmentMinimumPwmCannotBypassDefaultWithoutLowPwmOptIn));
+                    AssertEqual(false, options.AllowLowPwm, nameof(EnvironmentMinimumPwmUsesTenPercentHardFloor));
+                    AssertEqual(10.0f, options.MinimumPwmPercent, nameof(EnvironmentMinimumPwmUsesTenPercentHardFloor));
                 });
-            });
 
-            WithEnvironment("FANCONTROL_NPB5ITE_ALLOW_LOW_PWM", "1", () =>
-            {
                 WithEnvironment("FANCONTROL_NPB5ITE_MIN_PWM_PERCENT", "5", () =>
                 {
                     var options = PluginOptions.FromEnvironment();
 
-                    AssertEqual(true, options.AllowLowPwm, nameof(EnvironmentMinimumPwmCannotBypassDefaultWithoutLowPwmOptIn));
-                    AssertEqual(10.0f, options.MinimumPwmPercent, nameof(EnvironmentMinimumPwmCannotBypassDefaultWithoutLowPwmOptIn));
+                    AssertEqual(false, options.AllowLowPwm, nameof(EnvironmentMinimumPwmUsesTenPercentHardFloor));
+                    AssertEqual(10.0f, options.MinimumPwmPercent, nameof(EnvironmentMinimumPwmUsesTenPercentHardFloor));
                 });
-            });
 
-            WithEnvironment("FANCONTROL_NPB5ITE_ALLOW_LOW_PWM", "1", () =>
-            {
                 WithEnvironment("FANCONTROL_NPB5ITE_MIN_PWM_PERCENT", "200", () =>
                 {
                     var options = PluginOptions.FromEnvironment();
 
-                    AssertEqual(100.0f, options.MinimumPwmPercent, nameof(EnvironmentMinimumPwmCannotBypassDefaultWithoutLowPwmOptIn));
+                    AssertEqual(100.0f, options.MinimumPwmPercent, nameof(EnvironmentMinimumPwmUsesTenPercentHardFloor));
                 });
             });
         }
@@ -488,7 +482,7 @@ namespace FanControl.NPB5ITE.Tests
         {
             return new FanSafetyPolicy(new FanSafetyOptions
             {
-                MinimumPwmPercent = 35.0f,
+                MinimumPwmPercent = 10.0f,
                 CriticalCpuTemperatureCelsius = 85.0f,
                 AllowLowPwm = false,
                 AllowManualWithoutCpuTemperature = allowManualWithoutTemperature

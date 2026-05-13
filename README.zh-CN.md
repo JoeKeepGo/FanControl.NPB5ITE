@@ -63,8 +63,7 @@ Fan Control 需要使用与 `FanControl.Plugins.dll` 兼容的 .NET 10 构建。
 - LibreHardwareMonitor 主板风扇 RPM 回退来源。
 - HWiNFO Gadget/VSB RPM 回退来源。
 - Fan Control 手动/曲线 PWM 控制传感器，带后台合并写入。
-- 默认 35% 最低 PWM。
-- 可选最低 PWM 下限到 10%。
+- 默认 10% 最低 PWM。
 - 0% 控制请求会释放手动控制，并恢复此前/自动状态。
 - CPU 温度达到或超过 85 C 时强制全速。
 - Reset、Close、RPM 读取失败、温度读取失败或写入失败时，恢复此前/自动控制。
@@ -127,11 +126,10 @@ $env:FANCONTROL_NPB5ITE_ENABLE_EXPERIMENTAL_REGISTERS='1'
 $env:FANCONTROL_NPB5ITE_ALLOW_MANUAL_WITHOUT_CPU_TEMP='1'
 ```
 
-如需测试更低 PWM，请显式 opt-in：
+默认最低手动 PWM 为 10%。如果想使用更保守的曲线，可以提高最低值：
 
 ```powershell
-$env:FANCONTROL_NPB5ITE_ALLOW_LOW_PWM='1'
-$env:FANCONTROL_NPB5ITE_MIN_PWM_PERCENT='10'
+$env:FANCONTROL_NPB5ITE_MIN_PWM_PERCENT='20'
 ```
 
 环境变量：
@@ -143,8 +141,7 @@ $env:FANCONTROL_NPB5ITE_MIN_PWM_PERCENT='10'
 | `FANCONTROL_NPB5ITE_ENABLE_WRITES` | disabled | 在未识别硬件上允许硬件写入。已测试 NPB5 / RPBNB 不需要。 |
 | `FANCONTROL_NPB5ITE_ENABLE_EXPERIMENTAL_REGISTERS` | disabled | 在未识别硬件上允许写入已观察到的 IT8613E fan2 寄存器映射。已测试 NPB5 / RPBNB 不需要。 |
 | `FANCONTROL_NPB5ITE_ALLOW_MANUAL_WITHOUT_CPU_TEMP` | disabled | CPU 温度不可用时仍允许手动 PWM。仅限短时间测试。 |
-| `FANCONTROL_NPB5ITE_ALLOW_LOW_PWM` | disabled | 允许 `FANCONTROL_NPB5ITE_MIN_PWM_PERCENT` 低于 35%。 |
-| `FANCONTROL_NPB5ITE_MIN_PWM_PERCENT` | `35` | 最低手动 PWM。启用低 PWM opt-in 后，硬下限为 10%。 |
+| `FANCONTROL_NPB5ITE_MIN_PWM_PERCENT` | `10` | 最低手动 PWM。低于 10% 的值会被钳制到 10%。 |
 
 插件日志路径：
 
@@ -200,7 +197,7 @@ FanControl.NPB5ITE.pdb
 本地 release 打包：
 
 ```powershell
-.\scripts\package-release.ps1 -Version 0.2.1
+.\scripts\package-release.ps1 -Version 0.2.2
 ```
 
 不要包含本地诊断输出、部署日志或 Fan Control 安装 DLL。

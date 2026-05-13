@@ -5,8 +5,8 @@ namespace FanControl.NPB5ITE
 {
     public sealed class PluginOptions
     {
-        public const float DefaultMinimumPwmPercent = 35.0f;
-        public const float ExperimentalMinimumPwmPercent = 10.0f;
+        public const float DefaultMinimumPwmPercent = 10.0f;
+        public const float ExperimentalMinimumPwmPercent = DefaultMinimumPwmPercent;
         public const float DefaultCriticalCpuTemperatureCelsius = 85.0f;
 
         public HardwareIdentity HardwareIdentity { get; private set; } = HardwareIdentity.Unknown;
@@ -45,11 +45,11 @@ namespace FanControl.NPB5ITE
                 EnableExperimentalRegisters = !disableWrites && (usesTestedHardwareDefaults || IsEnabled("FANCONTROL_NPB5ITE_ENABLE_EXPERIMENTAL_REGISTERS")),
                 AllowLowPwm = allowLowPwm,
                 AllowManualWithoutCpuTemperature = IsEnabled("FANCONTROL_NPB5ITE_ALLOW_MANUAL_WITHOUT_CPU_TEMP"),
-                MinimumPwmPercent = ReadMinimumPwmPercent(allowLowPwm)
+                MinimumPwmPercent = ReadMinimumPwmPercent()
             };
         }
 
-        private static float ReadMinimumPwmPercent(bool allowLowPwm)
+        private static float ReadMinimumPwmPercent()
         {
             var configured = ReadFloat("FANCONTROL_NPB5ITE_MIN_PWM_PERCENT");
             if (!configured.HasValue)
@@ -57,12 +57,7 @@ namespace FanControl.NPB5ITE
                 return DefaultMinimumPwmPercent;
             }
 
-            if (!allowLowPwm)
-            {
-                return Clamp(configured.Value, DefaultMinimumPwmPercent, 100.0f);
-            }
-
-            return Clamp(configured.Value, ExperimentalMinimumPwmPercent, 100.0f);
+            return Clamp(configured.Value, DefaultMinimumPwmPercent, 100.0f);
         }
 
         private static float? ReadFloat(string name)

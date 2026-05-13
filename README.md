@@ -63,8 +63,7 @@ Fan Control must be a .NET 10 build compatible with `FanControl.Plugins.dll`.
 - LibreHardwareMonitor motherboard fan RPM fallback.
 - HWiNFO Gadget/VSB RPM fallback.
 - Fan Control manual/curve PWM sensor with coalesced background writes.
-- Default 35% minimum PWM.
-- Optional low-PWM floor down to 10%.
+- Default 10% minimum PWM.
 - 0% control request releases manual control and restores previous/automatic state.
 - Full speed at or above 85 C.
 - Restore previous/automatic control on reset, close, RPM read failure, temperature read failure, or write failure.
@@ -127,11 +126,10 @@ If CPU temperature is unavailable through LibreHardwareMonitor, manual writes ar
 $env:FANCONTROL_NPB5ITE_ALLOW_MANUAL_WITHOUT_CPU_TEMP='1'
 ```
 
-To test lower PWM values, opt in explicitly:
+The default minimum manual PWM is 10%. You can raise the minimum for a more conservative curve:
 
 ```powershell
-$env:FANCONTROL_NPB5ITE_ALLOW_LOW_PWM='1'
-$env:FANCONTROL_NPB5ITE_MIN_PWM_PERCENT='10'
+$env:FANCONTROL_NPB5ITE_MIN_PWM_PERCENT='20'
 ```
 
 Environment variables:
@@ -143,8 +141,7 @@ Environment variables:
 | `FANCONTROL_NPB5ITE_ENABLE_WRITES` | disabled | Allows hardware writes on unrecognized hardware. Not needed on the tested NPB5 / RPBNB. |
 | `FANCONTROL_NPB5ITE_ENABLE_EXPERIMENTAL_REGISTERS` | disabled | Allows writes to the observed IT8613E fan2 register map on unrecognized hardware. Not needed on the tested NPB5 / RPBNB. |
 | `FANCONTROL_NPB5ITE_ALLOW_MANUAL_WITHOUT_CPU_TEMP` | disabled | Allows manual PWM when CPU temperature is unavailable. Use only for short tests. |
-| `FANCONTROL_NPB5ITE_ALLOW_LOW_PWM` | disabled | Allows `FANCONTROL_NPB5ITE_MIN_PWM_PERCENT` below 35%. |
-| `FANCONTROL_NPB5ITE_MIN_PWM_PERCENT` | `35` | Minimum manual PWM. With low-PWM opt-in, the hard floor is 10%. |
+| `FANCONTROL_NPB5ITE_MIN_PWM_PERCENT` | `10` | Minimum manual PWM. Values below 10% are clamped to 10%. |
 
 Plugin logs are written to:
 
@@ -200,7 +197,7 @@ FanControl.NPB5ITE.pdb
 Local release package:
 
 ```powershell
-.\scripts\package-release.ps1 -Version 0.2.1
+.\scripts\package-release.ps1 -Version 0.2.2
 ```
 
 Do not include local diagnostic output, deployment logs, or Fan Control installation DLLs.

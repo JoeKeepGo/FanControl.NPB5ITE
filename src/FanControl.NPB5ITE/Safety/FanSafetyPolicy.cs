@@ -16,11 +16,7 @@ namespace FanControl.NPB5ITE.Safety
                 throw new ArgumentOutOfRangeException(nameof(options), "Minimum PWM must be between the safety floor and 100%.");
             }
 
-            var minimumAllowed = options.AllowLowPwm
-                ? PluginOptions.ExperimentalMinimumPwmPercent
-                : PluginOptions.DefaultMinimumPwmPercent;
-
-            if (options.MinimumPwmPercent < minimumAllowed)
+            if (options.MinimumPwmPercent < PluginOptions.DefaultMinimumPwmPercent)
             {
                 throw new ArgumentOutOfRangeException(nameof(options), "Minimum PWM is below the configured safety floor.");
             }
