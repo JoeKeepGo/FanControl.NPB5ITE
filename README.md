@@ -1,6 +1,6 @@
 # FanControl.NPB5ITE
 
-Experimental Fan Control plugin for Minisforum Venus Series NPB5 / RPBNB systems with an ITE IT8613E/F hardware monitor.
+Fan Control plugin for Minisforum Venus Series NPB5 / RPBNB systems with an ITE IT8613E/F hardware monitor.
 
 This plugin exposes:
 
@@ -12,13 +12,13 @@ This plugin exposes:
 
 This project writes low-level hardware monitor registers when manual PWM is explicitly enabled. Wrong register writes can make cooling unstable.
 
-Use it only if you understand and accept the risk. Keep a way to restore BIOS fan control, monitor CPU temperature during testing, and do not leave experimental settings unattended.
+Use it only if you understand and accept the risk. Keep a way to restore BIOS fan control and monitor CPU temperature during initial setup.
 
 Default behavior is read-only. Manual PWM writes require all required environment switches and Administrator access.
 
 ## Hardware Status
 
-Theoretical target family:
+Likely compatible target family:
 
 - Minisforum Venus Series NPB5 / NPB7 and closely related NAB5 / NAB6 systems when they use a compatible ITE IT8613E/F hardware monitor layout.
 
@@ -31,17 +31,17 @@ Tested target:
 - IT8613E chip ID `0x8613`.
 - HWM base observed as `0x0A30`.
 
-Other Venus Series models are not guaranteed to work. Treat NPB7, NAB5, NAB6, and any board revision other than the tested NPB5 as unvalidated until read-only diagnostics confirm the same chip, base address, RPM source, PWM duty register, and restore behavior.
+Other Venus Series models should be verified with read-only diagnostics before enabling PWM control. NPB7, NAB5, NAB6, and board revisions other than the tested NPB5 need the same chip, base address, RPM source, PWM duty register, and restore behavior.
 
 Current PWM implementation:
 
-- Uses the experimental fan2 PWM duty register `0x6B`.
+- Uses the observed fan2 PWM duty register `0x6B`.
 - Uses IT8613E HWM indexed register access through LibreHardwareMonitor/PawnIO.
 - Converts Fan Control percentage to 8-bit PWM duty `0..255`.
 - Restores old register values captured before manual writes.
 - Reads CPU fan RPM directly from the observed fan2 tach registers `0x0E` and `0x19` using `675000 / tachCount`.
 
-The current register map is still marked experimental. `RegisterMap.ConfirmedCpuFanControl` is intentionally empty.
+The PWM register map remains gated behind an explicit opt-in environment variable so the plugin stays read-only by default.
 
 ## Platform Support
 
@@ -62,7 +62,7 @@ Fan Control must be a .NET 10 build compatible with `FanControl.Plugins.dll`.
 - HWiNFO Gadget/VSB RPM fallback.
 - Fan Control manual/curve PWM sensor with coalesced background writes.
 - Default 35% minimum PWM.
-- Optional experimental low-PWM floor down to 10%.
+- Optional low-PWM floor down to 10%.
 - 0% control request releases manual control and restores previous/automatic state.
 - Full speed at or above 85 C.
 - Restore previous/automatic control on reset, close, RPM read failure, temperature read failure, or write failure.
@@ -105,7 +105,7 @@ Recommended read-only startup:
 Start-Process 'C:\Program Files (x86)\FanControl\FanControl.exe'
 ```
 
-Experimental manual PWM startup:
+Manual PWM startup:
 
 ```powershell
 $env:FANCONTROL_NPB5ITE_ENABLE_WRITES='1'
@@ -131,7 +131,7 @@ Environment variables:
 | Variable | Default | Description |
 | --- | --- | --- |
 | `FANCONTROL_NPB5ITE_ENABLE_WRITES` | disabled | Allows any hardware write path. |
-| `FANCONTROL_NPB5ITE_ENABLE_EXPERIMENTAL_REGISTERS` | disabled | Allows writes to the experimental IT8613E fan2 register map. |
+| `FANCONTROL_NPB5ITE_ENABLE_EXPERIMENTAL_REGISTERS` | disabled | Allows writes to the observed IT8613E fan2 register map. Kept as an explicit safety opt-in. |
 | `FANCONTROL_NPB5ITE_ALLOW_MANUAL_WITHOUT_CPU_TEMP` | disabled | Allows manual PWM when CPU temperature is unavailable. Use only for short tests. |
 | `FANCONTROL_NPB5ITE_ALLOW_LOW_PWM` | disabled | Allows `FANCONTROL_NPB5ITE_MIN_PWM_PERCENT` below 35%. |
 | `FANCONTROL_NPB5ITE_MIN_PWM_PERCENT` | `35` | Minimum manual PWM. With low-PWM opt-in, the hard floor is 10%. |
@@ -213,9 +213,9 @@ Suggested register confirmation workflow:
 2. Capture a read-only snapshot for BIOS Auto.
 3. Capture snapshots for known BIOS manual PWM values, for example raw `127`, `153`, and `204`.
 4. Compare direct IT8613E RPM, HWiNFO RPM, LibreHardwareMonitor output, PWM capability output, and IT8613E HWM register dumps.
-5. Move registers from experimental to confirmed only after repeated captures show stable, predictable behavior.
+5. Confirm that RPM, PWM duty, and restore behavior match the tested NPB5 behavior before trying curves.
 
-Experimental write probe:
+Write probe:
 
 ```powershell
 $env:FANCONTROL_NPB5ITE_ENABLE_WRITES='1'
@@ -228,11 +228,11 @@ The probe writes PWM, captures snapshots, waits, and restores the previous regis
 ## Known Limitations
 
 - Only the NPB5/RPBNB IT8613E/F path has been investigated.
-- NPB7, NAB5, NAB6, and other similar Venus Series systems are theoretical targets only.
-- PWM writes remain experimental and require explicit opt-in.
+- NPB7, NAB5, NAB6, and other similar Venus Series systems should be verified before PWM control is enabled.
+- PWM writes require explicit opt-in.
 - Auto restore is based on old-value register snapshots, not a fully confirmed BIOS Auto register map.
 - Direct IT8613E tach RPM has only been verified on one NPB5/Windows 11 system.
-- Fan Control must run elevated for direct IT8613E HWM tach reads and experimental IT8613E HWM register writes.
+- Fan Control must run elevated for direct IT8613E HWM tach reads and IT8613E HWM register writes.
 
 ## Roadmap
 
