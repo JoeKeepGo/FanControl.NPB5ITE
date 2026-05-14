@@ -65,7 +65,7 @@ Fan Control must be a .NET 10 build compatible with `FanControl.Plugins.dll`.
 - Fan Control manual/curve PWM sensor with coalesced background writes.
 - Default 10% minimum PWM.
 - 0% control request releases manual control and restores previous/automatic state.
-- Full speed at or above 85 C.
+- Full speed at or above the configurable critical CPU temperature threshold. Default is 95 C.
 - Restore previous/automatic control on reset, close, RPM read failure, temperature read failure, or write failure.
 - Read-only diagnostics for hardware confirmation.
 
@@ -132,6 +132,12 @@ The default minimum manual PWM is 10%. You can raise the minimum for a more cons
 $env:FANCONTROL_NPB5ITE_MIN_PWM_PERCENT='20'
 ```
 
+The default critical CPU temperature threshold is 95 C. You can adjust it between 70 C and 100 C:
+
+```powershell
+$env:FANCONTROL_NPB5ITE_CRITICAL_CPU_TEMP_C='90'
+```
+
 Environment variables:
 
 | Variable | Default | Description |
@@ -142,6 +148,7 @@ Environment variables:
 | `FANCONTROL_NPB5ITE_ENABLE_EXPERIMENTAL_REGISTERS` | disabled | Allows writes to the observed IT8613E fan2 register map on unrecognized hardware. Not needed on the tested NPB5 / RPBNB. |
 | `FANCONTROL_NPB5ITE_ALLOW_MANUAL_WITHOUT_CPU_TEMP` | disabled | Allows manual PWM when CPU temperature is unavailable. Use only for short tests. |
 | `FANCONTROL_NPB5ITE_MIN_PWM_PERCENT` | `10` | Minimum manual PWM. Values below 10% are clamped to 10%. |
+| `FANCONTROL_NPB5ITE_CRITICAL_CPU_TEMP_C` | `95` | Critical CPU temperature threshold for forced full speed. Values are clamped to 70..100 C. |
 
 Plugin logs are written to:
 
@@ -197,7 +204,7 @@ FanControl.NPB5ITE.pdb
 Local release package:
 
 ```powershell
-.\scripts\package-release.ps1 -Version 0.2.2
+.\scripts\package-release.ps1 -Version 0.2.3
 ```
 
 Do not include local diagnostic output, deployment logs, or Fan Control installation DLLs.

@@ -7,7 +7,9 @@ namespace FanControl.NPB5ITE
     {
         public const float DefaultMinimumPwmPercent = 10.0f;
         public const float ExperimentalMinimumPwmPercent = DefaultMinimumPwmPercent;
-        public const float DefaultCriticalCpuTemperatureCelsius = 85.0f;
+        public const float DefaultCriticalCpuTemperatureCelsius = 95.0f;
+        public const float MinimumCriticalCpuTemperatureCelsius = 70.0f;
+        public const float MaximumCriticalCpuTemperatureCelsius = 100.0f;
 
         public HardwareIdentity HardwareIdentity { get; private set; } = HardwareIdentity.Unknown;
 
@@ -45,7 +47,8 @@ namespace FanControl.NPB5ITE
                 EnableExperimentalRegisters = !disableWrites && (usesTestedHardwareDefaults || IsEnabled("FANCONTROL_NPB5ITE_ENABLE_EXPERIMENTAL_REGISTERS")),
                 AllowLowPwm = allowLowPwm,
                 AllowManualWithoutCpuTemperature = IsEnabled("FANCONTROL_NPB5ITE_ALLOW_MANUAL_WITHOUT_CPU_TEMP"),
-                MinimumPwmPercent = ReadMinimumPwmPercent()
+                MinimumPwmPercent = ReadMinimumPwmPercent(),
+                CriticalCpuTemperatureCelsius = ReadCriticalCpuTemperatureCelsius()
             };
         }
 
@@ -58,6 +61,17 @@ namespace FanControl.NPB5ITE
             }
 
             return Clamp(configured.Value, DefaultMinimumPwmPercent, 100.0f);
+        }
+
+        private static float ReadCriticalCpuTemperatureCelsius()
+        {
+            var configured = ReadFloat("FANCONTROL_NPB5ITE_CRITICAL_CPU_TEMP_C");
+            if (!configured.HasValue)
+            {
+                return DefaultCriticalCpuTemperatureCelsius;
+            }
+
+            return Clamp(configured.Value, MinimumCriticalCpuTemperatureCelsius, MaximumCriticalCpuTemperatureCelsius);
         }
 
         private static float? ReadFloat(string name)

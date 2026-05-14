@@ -41,7 +41,7 @@ namespace FanControl.NPB5ITE
         {
             _options = PluginOptions.FromEnvironment();
             _hardware = new Ite8613fIo(new LibreHardwareMonitorLpcIoPort(), _options, _log);
-            _log.Info("Plugin initialized. Hardware writes enabled: " + _options.EnableHardwareWrites + ". Tested hardware defaults: " + _options.UsesTestedHardwareDefaults + ". Minimum PWM: " + _options.MinimumPwmPercent + "%.");
+            _log.Info("Plugin initialized. Hardware writes enabled: " + _options.EnableHardwareWrites + ". Tested hardware defaults: " + _options.UsesTestedHardwareDefaults + ". Minimum PWM: " + _options.MinimumPwmPercent + "%. Critical CPU temperature: " + _options.CriticalCpuTemperatureCelsius + " C.");
             _log.Info("Detected hardware: " + _options.HardwareIdentity.Summary + ".");
             _log.Warning(_hardware.GetPwmControlCapability().Summary);
         }

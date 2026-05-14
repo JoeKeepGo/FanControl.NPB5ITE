@@ -17,13 +17,16 @@ namespace FanControl.NPB5ITE.Tests
             MissingRpmRestoresAuto();
             DisabledWritesRestoreAuto();
             ZeroPwmRestoresAuto();
+            TemperatureBelowCriticalDoesNotForceFullSpeed();
             TenPercentMinimumPwmIsAllowedByDefault();
             MinimumPwmHardFloorIsTenPercent();
             SafetyPolicyRejectsInvalidMinimumPwm();
+            SafetyPolicyRejectsInvalidCriticalTemperature();
             TestedNpb5HardwareDefaultsEnableWrites();
             DisableWritesOverridesTestedHardwareDefaults();
             UnknownHardwareDefaultsRemainReadOnly();
             EnvironmentMinimumPwmUsesTenPercentHardFloor();
+            EnvironmentCriticalTemperatureUsesSafeBounds();
             RegisterDumpComparerFindsChangedValues();
             HwInfoRawRpmIsParsed();
             HwInfoFormattedRpmFallbackIsParsed();
@@ -65,7 +68,7 @@ namespace FanControl.NPB5ITE.Tests
             var decision = policy.Evaluate(new FanSafetyInputs
             {
                 RequestedPwmPercent = 40.0f,
-                CpuTemperatureCelsius = 85.0f,
+                CpuTemperatureCelsius = 95.0f,
                 FanRpmReadSucceeded = true,
                 HardwareWritesEnabled = true
             });
@@ -114,12 +117,27 @@ namespace FanControl.NPB5ITE.Tests
             AssertEqual(false, decision.PwmPercent.HasValue, nameof(ZeroPwmRestoresAuto));
         }
 
+        private static void TemperatureBelowCriticalDoesNotForceFullSpeed()
+        {
+            var policy = CreatePolicy(allowManualWithoutTemperature: false);
+            var decision = policy.Evaluate(new FanSafetyInputs
+            {
+                RequestedPwmPercent = 40.0f,
+                CpuTemperatureCelsius = 94.0f,
+                FanRpmReadSucceeded = true,
+                HardwareWritesEnabled = true
+            });
+
+            AssertEqual(FanSafetyAction.ApplyManualPwm, decision.Action, nameof(TemperatureBelowCriticalDoesNotForceFullSpeed));
+            AssertEqual(40.0f, decision.PwmPercent.GetValueOrDefault(), nameof(TemperatureBelowCriticalDoesNotForceFullSpeed));
+        }
+
         private static void TenPercentMinimumPwmIsAllowedByDefault()
         {
             var policy = new FanSafetyPolicy(new FanSafetyOptions
             {
                 MinimumPwmPercent = 10.0f,
-                CriticalCpuTemperatureCelsius = 85.0f,
+                CriticalCpuTemperatureCelsius = 95.0f,
                 AllowManualWithoutCpuTemperature = true
             });
 
@@ -139,7 +157,7 @@ namespace FanControl.NPB5ITE.Tests
             var policy = new FanSafetyPolicy(new FanSafetyOptions
             {
                 MinimumPwmPercent = 10.0f,
-                CriticalCpuTemperatureCelsius = 85.0f,
+                CriticalCpuTemperatureCelsius = 95.0f,
                 AllowManualWithoutCpuTemperature = true
             });
 
@@ -161,7 +179,7 @@ namespace FanControl.NPB5ITE.Tests
                 new FanSafetyPolicy(new FanSafetyOptions
                 {
                     MinimumPwmPercent = 101.0f,
-                    CriticalCpuTemperatureCelsius = 85.0f,
+                    CriticalCpuTemperatureCelsius = 95.0f,
                     AllowLowPwm = true,
                     AllowManualWithoutCpuTemperature = true
                 });
@@ -172,6 +190,25 @@ namespace FanControl.NPB5ITE.Tests
             }
 
             throw new InvalidOperationException(nameof(SafetyPolicyRejectsInvalidMinimumPwm) + " failed. Expected ArgumentOutOfRangeException.");
+        }
+
+        private static void SafetyPolicyRejectsInvalidCriticalTemperature()
+        {
+            try
+            {
+                new FanSafetyPolicy(new FanSafetyOptions
+                {
+                    MinimumPwmPercent = 10.0f,
+                    CriticalCpuTemperatureCelsius = 101.0f,
+                    AllowManualWithoutCpuTemperature = true
+                });
+            }
+            catch (ArgumentOutOfRangeException)
+            {
+                return;
+            }
+
+            throw new InvalidOperationException(nameof(SafetyPolicyRejectsInvalidCriticalTemperature) + " failed. Expected ArgumentOutOfRangeException.");
         }
 
         private static void TestedNpb5HardwareDefaultsEnableWrites()
@@ -185,6 +222,7 @@ namespace FanControl.NPB5ITE.Tests
                 AssertEqual(true, options.EnableExperimentalRegisters, nameof(TestedNpb5HardwareDefaultsEnableWrites));
                 AssertEqual(false, options.AllowLowPwm, nameof(TestedNpb5HardwareDefaultsEnableWrites));
                 AssertEqual(10.0f, options.MinimumPwmPercent, nameof(TestedNpb5HardwareDefaultsEnableWrites));
+                AssertEqual(95.0f, options.CriticalCpuTemperatureCelsius, nameof(TestedNpb5HardwareDefaultsEnableWrites));
             });
         }
 
@@ -240,6 +278,33 @@ namespace FanControl.NPB5ITE.Tests
                     var options = PluginOptions.FromEnvironment();
 
                     AssertEqual(100.0f, options.MinimumPwmPercent, nameof(EnvironmentMinimumPwmUsesTenPercentHardFloor));
+                });
+            });
+        }
+
+        private static void EnvironmentCriticalTemperatureUsesSafeBounds()
+        {
+            WithoutPluginEnvironment(() =>
+            {
+                WithEnvironment("FANCONTROL_NPB5ITE_CRITICAL_CPU_TEMP_C", "100", () =>
+                {
+                    var options = PluginOptions.FromEnvironment();
+
+                    AssertEqual(100.0f, options.CriticalCpuTemperatureCelsius, nameof(EnvironmentCriticalTemperatureUsesSafeBounds));
+                });
+
+                WithEnvironment("FANCONTROL_NPB5ITE_CRITICAL_CPU_TEMP_C", "105", () =>
+                {
+                    var options = PluginOptions.FromEnvironment();
+
+                    AssertEqual(100.0f, options.CriticalCpuTemperatureCelsius, nameof(EnvironmentCriticalTemperatureUsesSafeBounds));
+                });
+
+                WithEnvironment("FANCONTROL_NPB5ITE_CRITICAL_CPU_TEMP_C", "60", () =>
+                {
+                    var options = PluginOptions.FromEnvironment();
+
+                    AssertEqual(70.0f, options.CriticalCpuTemperatureCelsius, nameof(EnvironmentCriticalTemperatureUsesSafeBounds));
                 });
             });
         }
@@ -483,7 +548,7 @@ namespace FanControl.NPB5ITE.Tests
             return new FanSafetyPolicy(new FanSafetyOptions
             {
                 MinimumPwmPercent = 10.0f,
-                CriticalCpuTemperatureCelsius = 85.0f,
+                CriticalCpuTemperatureCelsius = 95.0f,
                 AllowLowPwm = false,
                 AllowManualWithoutCpuTemperature = allowManualWithoutTemperature
             });
@@ -571,6 +636,7 @@ namespace FanControl.NPB5ITE.Tests
                 "FANCONTROL_NPB5ITE_DISABLE_TESTED_HARDWARE_DEFAULTS",
                 "FANCONTROL_NPB5ITE_ALLOW_LOW_PWM",
                 "FANCONTROL_NPB5ITE_MIN_PWM_PERCENT",
+                "FANCONTROL_NPB5ITE_CRITICAL_CPU_TEMP_C",
                 "FANCONTROL_NPB5ITE_ALLOW_MANUAL_WITHOUT_CPU_TEMP"
             };
 

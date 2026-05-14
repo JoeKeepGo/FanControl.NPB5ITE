@@ -21,6 +21,13 @@ namespace FanControl.NPB5ITE.Safety
                 throw new ArgumentOutOfRangeException(nameof(options), "Minimum PWM is below the configured safety floor.");
             }
 
+            if (float.IsNaN(options.CriticalCpuTemperatureCelsius)
+                || options.CriticalCpuTemperatureCelsius < PluginOptions.MinimumCriticalCpuTemperatureCelsius
+                || options.CriticalCpuTemperatureCelsius > PluginOptions.MaximumCriticalCpuTemperatureCelsius)
+            {
+                throw new ArgumentOutOfRangeException(nameof(options), "Critical CPU temperature must be between the configured safety bounds.");
+            }
+
             _options = options;
         }
 
