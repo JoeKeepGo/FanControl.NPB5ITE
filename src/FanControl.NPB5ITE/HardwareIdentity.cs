@@ -42,7 +42,7 @@ namespace FanControl.NPB5ITE
         public string BiosVersion { get; }
 
         public bool IsTestedNpb5RpBnb =>
-            Contains(BaseBoardManufacturer, "Shenzhen Meigao") &&
+            IsKnownNpb5BaseBoardManufacturer(BaseBoardManufacturer) &&
             Contains(BaseBoardProduct, "RPBNB") &&
             Contains(SystemProductName, "Venus Series") &&
             Contains(BiosVendor, "American Megatrends");
@@ -94,6 +94,12 @@ namespace FanControl.NPB5ITE
         private static bool Contains(string value, string expected)
         {
             return value.IndexOf(expected, StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        private static bool IsKnownNpb5BaseBoardManufacturer(string value)
+        {
+            return Contains(value, "Shenzhen Meigao")
+                || Contains(value, "Meigao Innovation Technology");
         }
     }
 }

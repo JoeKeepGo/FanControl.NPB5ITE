@@ -28,10 +28,12 @@
 
 - Minisforum NPB5 / RPBNB。
 - Windows 11。
+- BIOS `RPBNB.0.09` 和 BIOS `1.02`。
 - ITE IT8613E/F 硬件监控芯片。
 - Super I/O index port `0x2E`。
 - IT8613E chip ID `0x8613`。
 - 已观察到的 HWM base 为 `0x0A30`。
+- 已测试的 baseboard manufacturer 字符串：`Shenzhen Meigao Electronic Equipment Co.,Ltd` 和 `Meigao Innovation Technology (Shen Zhen) Co., Ltd`。
 
 其他 Venus Series 机型在启用 PWM 控制前，应先通过只读诊断验证。NPB7、NAB5、NAB6，以及不同于已测试 NPB5 的主板版本，需要确认芯片、base address、RPM 来源、PWM duty 寄存器和恢复行为一致。
 
@@ -204,7 +206,7 @@ FanControl.NPB5ITE.pdb
 本地 release 打包：
 
 ```powershell
-.\scripts\package-release.ps1 -Version 0.2.3
+.\scripts\package-release.ps1 -Version 0.2.4
 ```
 
 不要包含本地诊断输出、部署日志或 Fan Control 安装 DLL。
